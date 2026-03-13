@@ -2,9 +2,9 @@ package factory
 
 import (
 	"fmt"
-	"go_test/ordersys/domain/model/aggregate"
+	"go_test/ordersys/domain/model/agg"
 	entity2 "go_test/ordersys/domain/model/entity"
-	valueobject2 "go_test/ordersys/domain/model/valueobject"
+	valueobject2 "go_test/ordersys/domain/model/vo"
 )
 
 // OrderFactory 订单工厂
@@ -35,13 +35,13 @@ func (f *OrderFactory) CreateOrder(
 	userID string,
 	shippingAddress *valueobject2.Address,
 	productItems []ProductItem,
-) (*aggregate.Order, error) {
+) (*agg.Order, error) {
 	if len(productItems) == 0 {
 		return nil, fmt.Errorf("订单项不能为空")
 	}
 
 	orderID := f.idGenerator.Generate()
-	order, err := aggregate.NewOrder(orderID, userID, shippingAddress)
+	order, err := agg.NewOrder(orderID, userID, shippingAddress)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@ package entity
 
 import (
 	"errors"
-	"go_test/ordersys/domain/model/valueobject"
+	"go_test/ordersys/domain/model/vo"
 )
 
 // OrderItem 订单项实体
@@ -11,7 +11,7 @@ type OrderItem struct {
 	id        string
 	product   *Product
 	quantity  int
-	unitPrice *valueobject.Money
+	unitPrice *vo.Money
 }
 
 // NewOrderItem 创建订单项实体
@@ -49,7 +49,7 @@ func (oi *OrderItem) Quantity() int {
 }
 
 // UnitPrice 获取单价
-func (oi *OrderItem) UnitPrice() *valueobject.Money {
+func (oi *OrderItem) UnitPrice() *vo.Money {
 	return oi.unitPrice
 }
 
@@ -64,7 +64,7 @@ func (oi *OrderItem) UpdateQuantity(quantity int) error {
 
 // CalculateTotalPrice 计算订单项总价
 // 充血模型：业务逻辑在领域对象内部
-func (oi *OrderItem) CalculateTotalPrice() (*valueobject.Money, error) {
+func (oi *OrderItem) CalculateTotalPrice() (*vo.Money, error) {
 	return oi.unitPrice.Multiply(float64(oi.quantity))
 }
 

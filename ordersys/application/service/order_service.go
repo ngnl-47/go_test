@@ -5,9 +5,9 @@ import (
 	"go_test/common"
 	"go_test/ordersys/application/dto"
 	"go_test/ordersys/domain/factory"
-	"go_test/ordersys/domain/model/aggregate"
+	"go_test/ordersys/domain/model/agg"
 	"go_test/ordersys/domain/model/entity"
-	valueobject2 "go_test/ordersys/domain/model/valueobject"
+	valueobject2 "go_test/ordersys/domain/model/vo"
 	"go_test/ordersys/domain/repository"
 	"go_test/ordersys/domain/service"
 )
@@ -194,7 +194,7 @@ func (s *OrderApplicationService) CreateProduct(
 }
 
 // publishDomainEvents 发布领域事件到全局总线 common.GlobalEvent
-func (s *OrderApplicationService) publishDomainEvents(order *aggregate.Order) error {
+func (s *OrderApplicationService) publishDomainEvents(order *agg.Order) error {
 	for _, evt := range order.DomainEvents() {
 		common.GlobalEvent.Publish(evt.EventType(), evt)
 	}
@@ -203,7 +203,7 @@ func (s *OrderApplicationService) publishDomainEvents(order *aggregate.Order) er
 }
 
 // toOrderResponse 将订单聚合根转换为DTO
-func (s *OrderApplicationService) toOrderResponse(order *aggregate.Order) *dto.OrderResponse {
+func (s *OrderApplicationService) toOrderResponse(order *agg.Order) *dto.OrderResponse {
 	items := make([]dto.OrderItemResponse, 0, len(order.Items()))
 	for _, item := range order.Items() {
 		itemTotal, _ := item.CalculateTotalPrice()

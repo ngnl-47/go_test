@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"fmt"
-	"go_test/ordersys/domain/model/aggregate"
+	"go_test/ordersys/domain/model/agg"
 	"go_test/ordersys/domain/model/entity"
 	"sync"
 )
@@ -10,19 +10,19 @@ import (
 // InMemoryOrderRepository 内存订单仓储实现
 // 基础设施层：实现领域层定义的仓储接口
 type InMemoryOrderRepository struct {
-	orders map[string]*aggregate.Order
+	orders map[string]*agg.Order
 	mu     sync.RWMutex
 }
 
 // NewInMemoryOrderRepository 创建内存订单仓储
 func NewInMemoryOrderRepository() *InMemoryOrderRepository {
 	return &InMemoryOrderRepository{
-		orders: make(map[string]*aggregate.Order),
+		orders: make(map[string]*agg.Order),
 	}
 }
 
 // Save 保存订单
-func (r *InMemoryOrderRepository) Save(order *aggregate.Order) error {
+func (r *InMemoryOrderRepository) Save(order *agg.Order) error {
 	if order == nil {
 		return fmt.Errorf("订单不能为空")
 	}
@@ -35,7 +35,7 @@ func (r *InMemoryOrderRepository) Save(order *aggregate.Order) error {
 }
 
 // FindByID 根据ID查找订单
-func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) {
+func (r *InMemoryOrderRepository) FindByID(id string) (*agg.Order, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -48,11 +48,11 @@ func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) 
 }
 
 // FindByUserID 根据用户ID查找订单列表
-func (r *InMemoryOrderRepository) FindByUserID(userID string) ([]*aggregate.Order, error) {
+func (r *InMemoryOrderRepository) FindByUserID(userID string) ([]*agg.Order, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var orders []*aggregate.Order
+	var orders []*agg.Order
 	for _, order := range r.orders {
 		if order.UserID() == userID {
 			orders = append(orders, order)
@@ -63,11 +63,11 @@ func (r *InMemoryOrderRepository) FindByUserID(userID string) ([]*aggregate.Orde
 }
 
 // FindAll 查找所有订单
-func (r *InMemoryOrderRepository) FindAll() ([]*aggregate.Order, error) {
+func (r *InMemoryOrderRepository) FindAll() ([]*agg.Order, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	orders := make([]*aggregate.Order, 0, len(r.orders))
+	orders := make([]*agg.Order, 0, len(r.orders))
 	for _, order := range r.orders {
 		orders = append(orders, order)
 	}

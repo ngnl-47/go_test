@@ -1,11 +1,11 @@
-package aggregate
+package agg
 
 import (
 	"errors"
 	"fmt"
 	"go_test/ordersys/domain/model/entity"
 	"go_test/ordersys/domain/model/event"
-	valueobject2 "go_test/ordersys/domain/model/valueobject"
+	valueobject2 "go_test/ordersys/domain/model/vo"
 )
 
 // Order 订单聚合根

@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"go_test/ordersys/domain/model/aggregate"
+	"go_test/ordersys/domain/model/agg"
 	"go_test/ordersys/domain/model/entity"
 )
 
@@ -12,10 +12,10 @@ import (
 // 3. 隐藏数据访问细节
 // 4. 只针对聚合根定义仓储
 type OrderRepository interface {
-	Save(order *aggregate.Order) error
-	FindByID(id string) (*aggregate.Order, error)
-	FindByUserID(userID string) ([]*aggregate.Order, error)
-	FindAll() ([]*aggregate.Order, error)
+	Save(order *agg.Order) error
+	FindByID(id string) (*agg.Order, error)
+	FindByUserID(userID string) ([]*agg.Order, error)
+	FindAll() ([]*agg.Order, error)
 	Delete(id string) error
 }
 
