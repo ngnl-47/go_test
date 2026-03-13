@@ -1,4 +1,4 @@
-package repository
+package repo
 
 import (
 	"go_test/ordersys/domain/model/agg"

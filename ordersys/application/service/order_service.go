@@ -8,7 +8,7 @@ import (
 	"go_test/ordersys/domain/model/agg"
 	"go_test/ordersys/domain/model/entity"
 	valueobject2 "go_test/ordersys/domain/model/vo"
-	"go_test/ordersys/domain/repository"
+	"go_test/ordersys/domain/repo"
 	"go_test/ordersys/domain/service"
 )
 
@@ -19,8 +19,8 @@ import (
 // 3. 负责事务管理和权限控制
 // 4. DTO与领域对象之间的转换
 type OrderApplicationService struct {
-	orderRepo        repository.OrderRepository
-	productRepo      repository.ProductRepository
+	orderRepo        repo.OrderRepository
+	productRepo      repo.ProductRepository
 	orderFactory     *factory.OrderFactory
 	productFactory   *factory.ProductFactory
 	pricingService   *service.OrderPricingService
@@ -29,8 +29,8 @@ type OrderApplicationService struct {
 
 // NewOrderApplicationService 创建订单应用服务
 func NewOrderApplicationService(
-	orderRepo repository.OrderRepository,
-	productRepo repository.ProductRepository,
+	orderRepo repo.OrderRepository,
+	productRepo repo.ProductRepository,
 	orderFactory *factory.OrderFactory,
 	productFactory *factory.ProductFactory,
 	pricingService *service.OrderPricingService,

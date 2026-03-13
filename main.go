@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
+	"go_test/ordersys/repo"
 	"log"
 
-	_ "go_test/ordersys/application/event"
 	"go_test/ordersys/application/dto"
-	app_service "go_test/ordersys/application/service"
+	appservice "go_test/ordersys/application/service"
 	"go_test/ordersys/domain/factory"
-	domain_service "go_test/ordersys/domain/service"
-	"go_test/ordersys/infrastructure"
-	"go_test/ordersys/infrastructure/persistence"
+	domainservice "go_test/ordersys/domain/service"
 )
 
 func main() {
@@ -19,16 +17,16 @@ func main() {
 	fmt.Println("========================================")
 	fmt.Println()
 
-	idGenerator := infrastructure.NewUUIDGenerator()
-	orderRepo := persistence.NewInMemoryOrderRepository()
-	productRepo := persistence.NewInMemoryProductRepository()
+	idGenerator := repo.NewUUIDGenerator()
+	orderRepo := repo.NewInMemoryOrderRepository()
+	productRepo := repo.NewInMemoryProductRepository()
 
 	orderFactory := factory.NewOrderFactory(idGenerator)
 	productFactory := factory.NewProductFactory(idGenerator)
-	pricingService := domain_service.NewOrderPricingService(0.1)
-	inventoryService := domain_service.NewProductInventoryService()
+	pricingService := domainservice.NewOrderPricingService(0.1)
+	inventoryService := domainservice.NewProductInventoryService()
 
-	orderAppService := app_service.NewOrderApplicationService(
+	orderAppService := appservice.NewOrderApplicationService(
 		orderRepo,
 		productRepo,
 		orderFactory,
