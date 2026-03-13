@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+
+	_ "go_test/ordersys/application/event"
 	"go_test/ordersys/application/dto"
 	app_service "go_test/ordersys/application/service"
 	"go_test/ordersys/domain/factory"
 	domain_service "go_test/ordersys/domain/service"
 	"go_test/ordersys/infrastructure"
 	"go_test/ordersys/infrastructure/persistence"
-	"log"
 )
 
 func main() {
