@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
+	"go_test/common"
 	"go_test/ordersys/application/dto"
 	"go_test/ordersys/domain/factory"
 	"go_test/ordersys/domain/model/aggregate"
 	"go_test/ordersys/domain/model/entity"
-	"go_test/ordersys/domain/model/event"
 	valueobject2 "go_test/ordersys/domain/model/valueobject"
 	"go_test/ordersys/domain/repository"
 	"go_test/ordersys/domain/service"
@@ -25,7 +25,6 @@ type OrderApplicationService struct {
 	productFactory   *factory.ProductFactory
 	pricingService   *service.OrderPricingService
 	inventoryService *service.ProductInventoryService
-	eventPublisher   event.EventPublisher
 }
 
 // NewOrderApplicationService 创建订单应用服务
@@ -36,7 +35,6 @@ func NewOrderApplicationService(
 	productFactory *factory.ProductFactory,
 	pricingService *service.OrderPricingService,
 	inventoryService *service.ProductInventoryService,
-	eventPublisher event.EventPublisher,
 ) *OrderApplicationService {
 	return &OrderApplicationService{
 		orderRepo:        orderRepo,
@@ -45,7 +43,6 @@ func NewOrderApplicationService(
 		productFactory:   productFactory,
 		pricingService:   pricingService,
 		inventoryService: inventoryService,
-		eventPublisher:   eventPublisher,
 	}
 }
 
@@ -196,14 +193,10 @@ func (s *OrderApplicationService) CreateProduct(
 	return s.toProductResponse(product), nil
 }
 
-// publishDomainEvents 发布领域事件
-// 应用服务负责事件的发布
+// publishDomainEvents 发布领域事件到全局总线 common.GlobalEvent
 func (s *OrderApplicationService) publishDomainEvents(order *aggregate.Order) error {
-	events := order.DomainEvents()
-	for _, evt := range events {
-		if err := s.eventPublisher.Publish(evt); err != nil {
-			return err
-		}
+	for _, evt := range order.DomainEvents() {
+		common.GlobalEvent.Publish(evt.EventType(), evt)
 	}
 	order.ClearDomainEvents()
 	return nil

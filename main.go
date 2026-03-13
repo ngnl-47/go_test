@@ -5,49 +5,11 @@ import (
 	"go_test/ordersys/application/dto"
 	app_service "go_test/ordersys/application/service"
 	"go_test/ordersys/domain/factory"
-	event2 "go_test/ordersys/domain/model/event"
 	domain_service "go_test/ordersys/domain/service"
 	"go_test/ordersys/infrastructure"
 	"go_test/ordersys/infrastructure/persistence"
 	"log"
 )
-
-// OrderCreatedEventHandler 订单创建事件处理器
-type OrderCreatedEventHandler struct{}
-
-func (h *OrderCreatedEventHandler) Handle(evt event2.DomainEvent) error {
-	orderCreatedEvt := evt.(*event2.OrderCreatedEvent)
-	fmt.Printf("📧 发送通知：订单 %s 已创建，用户ID: %s\n", orderCreatedEvt.OrderID, orderCreatedEvt.UserID)
-	return nil
-}
-
-// OrderPaidEventHandler 订单支付事件处理器
-type OrderPaidEventHandler struct{}
-
-func (h *OrderPaidEventHandler) Handle(evt event2.DomainEvent) error {
-	orderPaidEvt := evt.(*event2.OrderPaidEvent)
-	fmt.Printf("💳 支付成功：订单 %s，支付金额: %.2f，支付方式: %s\n",
-		orderPaidEvt.OrderID, orderPaidEvt.PaidAmount, orderPaidEvt.PaymentMethod)
-	return nil
-}
-
-// OrderShippedEventHandler 订单发货事件处理器
-type OrderShippedEventHandler struct{}
-
-func (h *OrderShippedEventHandler) Handle(evt event2.DomainEvent) error {
-	orderShippedEvt := evt.(*event2.OrderShippedEvent)
-	fmt.Printf("🚚 订单发货：订单 %s，物流单号: %s\n", orderShippedEvt.OrderID, orderShippedEvt.TrackingNumber)
-	return nil
-}
-
-// OrderCancelledEventHandler 订单取消事件处理器
-type OrderCancelledEventHandler struct{}
-
-func (h *OrderCancelledEventHandler) Handle(evt event2.DomainEvent) error {
-	orderCancelledEvt := evt.(*event2.OrderCancelledEvent)
-	fmt.Printf("❌ 订单取消：订单 %s，原因: %s\n", orderCancelledEvt.OrderID, orderCancelledEvt.Reason)
-	return nil
-}
 
 func main() {
 	fmt.Println("========================================")
@@ -58,12 +20,6 @@ func main() {
 	idGenerator := infrastructure.NewUUIDGenerator()
 	orderRepo := persistence.NewInMemoryOrderRepository()
 	productRepo := persistence.NewInMemoryProductRepository()
-	eventPublisher := event2.NewInMemoryEventPublisher()
-
-	eventPublisher.Subscribe("OrderCreated", &OrderCreatedEventHandler{})
-	eventPublisher.Subscribe("OrderPaid", &OrderPaidEventHandler{})
-	eventPublisher.Subscribe("OrderShipped", &OrderShippedEventHandler{})
-	eventPublisher.Subscribe("OrderCancelled", &OrderCancelledEventHandler{})
 
 	orderFactory := factory.NewOrderFactory(idGenerator)
 	productFactory := factory.NewProductFactory(idGenerator)
@@ -77,7 +33,6 @@ func main() {
 		productFactory,
 		pricingService,
 		inventoryService,
-		eventPublisher,
 	)
 
 	fmt.Println("步骤1: 创建产品")
