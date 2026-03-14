@@ -16,13 +16,13 @@
 ordersys/
 ├── domain/
 │   ├── model/
-│   │   ├── valueobject/      # 值对象
+│   │   ├── vo/               # 值对象 (Value Object)
 │   │   ├── entity/           # 实体
-│   │   ├── aggregate/        # 聚合根
+│   │   ├── agg/              # 聚合根 (Aggregate Root)
 │   │   └── event/            # 领域事件
 │   ├── service/              # 领域服务
 │   ├── factory/              # 工厂
-│   └── repository/           # 仓储接口
+│   └── repo/                 # 仓储接口
 ```
 
 **核心组件：**
@@ -37,7 +37,7 @@ ordersys/
 - 无唯一标识：通过属性值判断相等性
 - 自验证：构造函数确保对象有效性
 
-**代码示例：**
+**代码示例：**（包 `vo`）
 ```go
 // Money 金额值对象
 type Money struct {
@@ -63,14 +63,14 @@ func (m *Money) Add(other *Money) (*Money, error) {
 - 可变性：通过方法修改内部状态
 - 充血模型：业务逻辑在实体内部
 
-**代码示例：**
+**代码示例：**（包 `entity`，价格类型为 `*vo.Money`）
 ```go
 // Product 产品实体
 type Product struct {
     id          string
     name        string
     description string
-    price       *valueobject.Money
+    price       *vo.Money
     stock       int
 }
 
@@ -96,16 +96,16 @@ func (p *Product) DecreaseStock(quantity int) error {
 - 事件发布：负责发布领域事件
 - 边界控制：控制聚合边界内的所有操作
 
-**代码示例：**
+**代码示例：**（包 `agg`，值对象来自包 `vo`）
 ```go
 // Order 订单聚合根
 type Order struct {
     id              string
     userID          string
     items           []*entity.OrderItem
-    shippingAddress *valueobject.Address
-    status          valueobject.OrderStatus
-    totalAmount     *valueobject.Money
+    shippingAddress *vo.Address
+    status          vo.OrderStatus
+    totalAmount     *vo.Money
     domainEvents    []event.DomainEvent
 }
 
@@ -137,13 +137,13 @@ func (o *Order) AddItem(item *entity.OrderItem) error {
 - 用于解耦领域对象之间的依赖
 - 支持事件驱动架构
 
-**代码示例：**
+**代码示例：**（包 `event`，提供 `NewOrderCreatedEvent` 等构造函数）
 ```go
 // OrderCreatedEvent 订单创建事件
 type OrderCreatedEvent struct {
     BaseEvent
-    OrderID   string
-    UserID    string
+    OrderID     string
+    UserID      string
     TotalAmount float64
 }
 
@@ -162,7 +162,7 @@ func (e *OrderCreatedEvent) EventType() string {
 - 无状态
 - 以领域概念命名
 
-**代码示例：**
+**代码示例：**（包 `domain/service`，入参为 `*agg.Order`）
 ```go
 // OrderPricingService 订单定价服务
 type OrderPricingService struct {
@@ -170,7 +170,7 @@ type OrderPricingService struct {
 }
 
 // CalculateDiscountedTotal 计算折扣后的订单总价
-func (s *OrderPricingService) CalculateDiscountedTotal(order *aggregate.Order) (float64, error) {
+func (s *OrderPricingService) CalculateDiscountedTotal(order *agg.Order) (float64, error) {
     if order == nil {
         return 0, errors.New("订单不能为空")
     }
@@ -184,35 +184,36 @@ func (s *OrderPricingService) CalculateDiscountedTotal(order *aggregate.Order) (
 ```
 
 #### 6. 工厂 (Factory)
-- **OrderFactory**: 订单工厂
-- **ProductFactory**: 产品工厂
+- **静态工厂方法**：`factory.CreateOrder`、`factory.CreateProduct`
+- **ID 生成器**：接口定义在 `domain/factory`（`IDGenerator`），实现在 `repo`（`UUIDGenerator`），通过 `factory.SetIDGenerator` 在应用启动时注入
 
 **特性：**
-- 负责复杂对象的创建
-- 封装创建逻辑
+- 负责复杂对象的创建，封装创建逻辑
 - 确保创建的对象处于有效状态
+- 使用包级 `idGenerator`，由应用层在 init 时注入，保证全局唯一
 
 **代码示例：**
 ```go
-// OrderFactory 订单工厂
-type OrderFactory struct {
-    idGenerator IDGenerator
+// domain/factory/id_gen.go：接口与注入
+type IDGenerator interface {
+    Generate() string
 }
+var idGenerator IDGenerator
+func SetIDGenerator(g IDGenerator) { idGenerator = g }
 
-// CreateOrder 创建订单
-func (f *OrderFactory) CreateOrder(
+// domain/factory/order_factory.go：静态工厂方法
+func CreateOrder(
     userID string,
-    shippingAddress *valueobject.Address,
+    shippingAddress *vo.Address,
     productItems []ProductItem,
-) (*aggregate.Order, error) {
-    orderID := f.idGenerator.Generate()
-    order, err := aggregate.NewOrder(orderID, userID, shippingAddress)
+) (*agg.Order, error) {
+    orderID := idGenerator.Generate()
+    order, err := agg.NewOrder(orderID, userID, shippingAddress)
     if err != nil {
         return nil, err
     }
-    
     for _, item := range productItems {
-        itemID := f.idGenerator.Generate()
+        itemID := idGenerator.Generate()
         orderItem, err := entity.NewOrderItem(itemID, item.Product, item.Quantity)
         if err != nil {
             return nil, err
@@ -221,29 +222,36 @@ func (f *OrderFactory) CreateOrder(
             return nil, err
         }
     }
-    
+    order.AddDomainEvent(event.NewOrderCreatedEvent(orderID, userID, order.TotalAmount().Amount()))
     return order, nil
 }
 ```
 
 #### 7. 仓储接口 (Repository Interface)
-- **OrderRepository**: 订单仓储接口
-- **ProductRepository**: 产品仓储接口
+- **OrderRepository**：订单仓储接口
+- **ProductRepository**：产品仓储接口
 
 **特性：**
-- 领域层定义接口，基础设施层实现
-- 提供聚合根的持久化操作
-- 隐藏数据访问细节
-- 只针对聚合根定义仓储
+- 领域层定义接口（`domain/repo`），基础设施层实现（`ordersys/repo`）
+- 提供聚合根的持久化操作，隐藏数据访问细节
+- 只针对聚合根/实体定义仓储
 
-**代码示例：**
+**代码示例：**（包 `domain/repo`）
 ```go
 // OrderRepository 订单仓储接口
 type OrderRepository interface {
-    Save(order *aggregate.Order) error
-    FindByID(id string) (*aggregate.Order, error)
-    FindByUserID(userID string) ([]*aggregate.Order, error)
-    FindAll() ([]*aggregate.Order, error)
+    Save(order *agg.Order) error
+    FindByID(id string) (*agg.Order, error)
+    FindByUserID(userID string) ([]*agg.Order, error)
+    FindAll() ([]*agg.Order, error)
+    Delete(id string) error
+}
+
+// ProductRepository 产品仓储接口
+type ProductRepository interface {
+    Save(product *entity.Product) error
+    FindByID(id string) (*entity.Product, error)
+    FindAll() ([]*entity.Product, error)
     Delete(id string) error
 }
 ```
@@ -256,7 +264,11 @@ type OrderRepository interface {
 ordersys/
 ├── application/
 │   ├── dto/                  # 数据传输对象
+│   │   └── order_dto.go
 │   └── service/              # 应用服务
+│       ├── order_service.go    # 订单应用服务
+│       ├── event_subscriber.go # 领域事件订阅（init 中注册到全局事件总线）
+│       └── defaults.go         # 包级 OrderAppService 与 init 装配
 ```
 
 **核心组件：**
@@ -296,39 +308,33 @@ type OrderResponse struct {
 ```
 
 #### 2. 应用服务 (Application Service)
-- **OrderApplicationService**: 订单应用服务
+- **OrderApplicationService**：订单应用服务
 
 **特性：**
-- 协调领域对象完成业务用例
-- 不包含业务逻辑，业务逻辑在领域层
-- 负责事务管理和权限控制
-- DTO与领域对象之间的转换
-- 发布领域事件
+- 协调领域对象完成业务用例，不包含业务逻辑（业务逻辑在领域层）
+- DTO 与领域对象之间的转换
+- 通过静态工厂 `factory.CreateOrder` / `factory.CreateProduct` 创建领域对象
+- 领域事件通过全局事件总线 `common.GlobalEvent`（EventBus）发布，订阅在 `event_subscriber.go` 的 init 中注册
 
 **代码示例：**
 ```go
 // OrderApplicationService 订单应用服务
 type OrderApplicationService struct {
-    orderRepo         repository.OrderRepository
-    productRepo       repository.ProductRepository
-    orderFactory      *factory.OrderFactory
-    productFactory    *factory.ProductFactory
-    pricingService    *service.OrderPricingService
-    inventoryService  *service.ProductInventoryService
-    eventPublisher    event.EventPublisher
+    orderRepo        repo.OrderRepository
+    productRepo      repo.ProductRepository
+    pricingService   *service.OrderPricingService
+    inventoryService *service.ProductInventoryService
 }
 
 // CreateOrder 创建订单
 func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
-    // 创建地址值对象
-    shippingAddress, err := valueobject.NewAddress(
+    shippingAddress, err := vo.NewAddress(
         req.Province, req.City, req.District, req.Street, req.ZipCode,
     )
     if err != nil {
         return nil, err
     }
-    
-    // 准备产品项
+
     productItems := make([]factory.ProductItem, 0, len(req.ProductItems))
     for _, item := range req.ProductItems {
         product, err := s.productRepo.FindByID(item.ProductID)
@@ -340,59 +346,64 @@ func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto
             Quantity: item.Quantity,
         })
     }
-    
-    // 使用工厂创建订单
-    order, err := s.orderFactory.CreateOrder(req.UserID, shippingAddress, productItems)
+
+    order, err := factory.CreateOrder(req.UserID, shippingAddress, productItems)
     if err != nil {
         return nil, err
     }
-    
-    // 保存订单
+
     if err := s.orderRepo.Save(order); err != nil {
         return nil, err
     }
-    
-    // 发布领域事件
     if err := s.publishDomainEvents(order); err != nil {
         return nil, err
     }
-    
     return s.toOrderResponse(order), nil
+}
+
+// publishDomainEvents 发布领域事件到全局总线 common.GlobalEvent
+func (s *OrderApplicationService) publishDomainEvents(order *agg.Order) error {
+    for _, evt := range order.DomainEvents() {
+        common.GlobalEvent.Publish(evt.EventType(), evt)
+    }
+    order.ClearDomainEvents()
+    return nil
 }
 ```
 
 ### 2.3 基础设施层 (Infrastructure Layer)
-基础设施层提供技术支持，实现领域层定义的接口。
+基础设施层提供技术支持，实现领域层定义的接口。本项目中位于 **ordersys/repo**，与领域层 `domain/repo` 接口对应。
 
 **目录结构：**
 ```
 ordersys/
-├── infrastructure/
-│   ├── persistence/          # 持久化实现
-│   └── id_generator.go       # ID生成器
+├── repo/
+│   ├── memory_repository.go  # 内存仓储实现（订单、产品）
+│   ├── id_generator.go       # ID 生成器实现（实现 factory.IDGenerator）
+│   └── defaults.go           # 包级 DefaultIDGen、DefaultOrderRepo、DefaultProductRepo，init 时初始化
 ```
 
 **核心组件：**
 
 #### 1. 仓储实现
-- **InMemoryOrderRepository**: 内存订单仓储实现
-- **InMemoryProductRepository**: 内存产品仓储实现
+- **InMemoryOrderRepository**：内存订单仓储实现
+- **InMemoryProductRepository**：内存产品仓储实现
 
 **特性：**
-- 实现领域层定义的仓储接口
-- 提供数据持久化能力
+- 实现 `domain/repo` 中定义的仓储接口
+- 使用 `sync.RWMutex` 保证并发安全
 - 可替换为数据库实现
 
-**代码示例：**
+**代码示例：**（包 `ordersys/repo`）
 ```go
 // InMemoryOrderRepository 内存订单仓储实现
 type InMemoryOrderRepository struct {
-    orders map[string]*aggregate.Order
+    orders map[string]*agg.Order
     mu     sync.RWMutex
 }
 
 // Save 保存订单
-func (r *InMemoryOrderRepository) Save(order *aggregate.Order) error {
+func (r *InMemoryOrderRepository) Save(order *agg.Order) error {
     if order == nil {
         return fmt.Errorf("订单不能为空")
     }
@@ -403,7 +414,7 @@ func (r *InMemoryOrderRepository) Save(order *aggregate.Order) error {
 }
 
 // FindByID 根据ID查找订单
-func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) {
+func (r *InMemoryOrderRepository) FindByID(id string) (*agg.Order, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
     order, exists := r.orders[id]
@@ -414,25 +425,26 @@ func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) 
 }
 ```
 
-#### 2. ID生成器
-- **UUIDGenerator**: UUID生成器
+#### 2. ID 生成器
+- **UUIDGenerator**：实现 `factory.IDGenerator` 接口
 
 **特性：**
-- 实现领域层定义的IDGenerator接口
-- 提供唯一ID生成能力
+- 在 `repo` 包实现，通过 `factory.SetIDGenerator(repo.DefaultIDGen)` 在应用层 init 时注入
+- 包级单例 `DefaultIDGen`、`DefaultOrderRepo`、`DefaultProductRepo` 在 `repo/defaults.go` 的 init 中创建
 
 **代码示例：**
 ```go
-// UUIDGenerator UUID生成器
+// repo/id_generator.go
 type UUIDGenerator struct {
     counter int
 }
 
-// Generate 生成唯一ID
 func (g *UUIDGenerator) Generate() string {
     g.counter++
     return fmt.Sprintf("ID-%d", g.counter)
 }
+
+var _ factory.IDGenerator = (*UUIDGenerator)(nil)
 ```
 
 ## 三、DDD核心概念实现
@@ -441,27 +453,16 @@ func (g *UUIDGenerator) Generate() string {
 本项目采用充血模型，业务逻辑在领域对象内部：
 
 ```go
-// 订单聚合根包含丰富的业务方法
+// 订单聚合根包含丰富的业务方法（包 agg，status 为 vo.OrderStatus）
 func (o *Order) Pay(paymentMethod string) error {
-    // 业务逻辑在领域对象内部
-    if err := o.status.CanTransitionTo(valueobject.OrderStatusPaid); err != nil {
+    if err := o.status.CanTransitionTo(vo.OrderStatusPaid); err != nil {
         return err
     }
-    
     if o.totalAmount == nil || o.totalAmount.Amount() == 0 {
         return errors.New("订单金额为0，无需支付")
     }
-    
-    o.status = valueobject.OrderStatusPaid
-    
-    // 发布领域事件
-    o.addDomainEvent(&event.OrderPaidEvent{
-        BaseEvent:     event.NewBaseEvent(),
-        OrderID:       o.id,
-        PaidAmount:    o.totalAmount.Amount(),
-        PaymentMethod: paymentMethod,
-    })
-    
+    o.status = vo.OrderStatusPaid
+    o.addDomainEvent(event.NewOrderPaidEvent(o.id, o.totalAmount.Amount(), paymentMethod))
     return nil
 }
 ```
@@ -503,35 +504,32 @@ func (o *Order) AddItem(item *entity.OrderItem) error {
 领域事件用于解耦领域对象之间的依赖：
 
 ```go
-// 订单创建时发布领域事件
-order.addDomainEvent(&event.OrderCreatedEvent{
-    BaseEvent: event.NewBaseEvent(),
-    OrderID:   id,
-    UserID:    userID,
-})
+// 订单创建时由工厂添加领域事件（在 factory.CreateOrder 中）
+order.AddDomainEvent(event.NewOrderCreatedEvent(orderID, userID, totalAmount))
 
-// 应用服务负责发布事件
-func (s *OrderApplicationService) publishDomainEvents(order *aggregate.Order) error {
-    events := order.DomainEvents()
-    for _, evt := range events {
-        if err := s.eventPublisher.Publish(evt); err != nil {
-            return err
-        }
+// 应用服务将领域事件发布到全局事件总线
+func (s *OrderApplicationService) publishDomainEvents(order *agg.Order) error {
+    for _, evt := range order.DomainEvents() {
+        common.GlobalEvent.Publish(evt.EventType(), evt)
     }
     order.ClearDomainEvents()
     return nil
 }
 ```
 
-**事件处理器示例：**
+**事件订阅：** 在 `application/service/event_subscriber.go` 的 init 中向 `common.GlobalEvent` 注册回调（使用第三方库 `github.com/asaskevich/EventBus`）。
 ```go
-// OrderCreatedEventHandler 订单创建事件处理器
-type OrderCreatedEventHandler struct{}
+// 应用层订阅订单领域事件（发通知等侧效应）
+func registerOrderEventHandlers() {
+    common.GlobalEvent.Subscribe("OrderCreated", wrap(onOrderCreated))
+    common.GlobalEvent.Subscribe("OrderPaid", wrap(onOrderPaid))
+    common.GlobalEvent.Subscribe("OrderShipped", wrap(onOrderShipped))
+    common.GlobalEvent.Subscribe("OrderCancelled", wrap(onOrderCancelled))
+}
 
-func (h *OrderCreatedEventHandler) Handle(evt event.DomainEvent) error {
-    orderCreatedEvt := evt.(*event.OrderCreatedEvent)
-    fmt.Printf("📧 发送通知：订单 %s 已创建，用户ID: %s\n", 
-        orderCreatedEvt.OrderID, orderCreatedEvt.UserID)
+func onOrderCreated(evt domainevent.DomainEvent) error {
+    e := evt.(*domainevent.OrderCreatedEvent)
+    fmt.Printf("📧 发送通知：订单 %s 已创建，用户ID: %s\n", e.OrderID, e.UserID)
     return nil
 }
 ```
@@ -540,18 +538,18 @@ func (h *OrderCreatedEventHandler) Handle(evt event.DomainEvent) error {
 仓储接口在领域层定义，实现在基础设施层：
 
 ```go
-// 领域层定义接口
+// 领域层定义接口（domain/repo）
 type OrderRepository interface {
-    Save(order *aggregate.Order) error
-    FindByID(id string) (*aggregate.Order, error)
-    FindByUserID(userID string) ([]*aggregate.Order, error)
-    FindAll() ([]*aggregate.Order, error)
+    Save(order *agg.Order) error
+    FindByID(id string) (*agg.Order, error)
+    FindByUserID(userID string) ([]*agg.Order, error)
+    FindAll() ([]*agg.Order, error)
     Delete(id string) error
 }
 
-// 基础设施层实现
+// 基础设施层实现（ordersys/repo）
 type InMemoryOrderRepository struct {
-    orders map[string]*aggregate.Order
+    orders map[string]*agg.Order
     mu     sync.RWMutex
 }
 ```
@@ -566,20 +564,19 @@ type InMemoryOrderRepository struct {
 工厂负责复杂对象的创建：
 
 ```go
-func (f *OrderFactory) CreateOrder(
+// 静态工厂方法（factory.CreateOrder），idGenerator 通过 factory.SetIDGenerator 注入
+func CreateOrder(
     userID string,
-    shippingAddress *valueobject.Address,
+    shippingAddress *vo.Address,
     productItems []ProductItem,
-) (*aggregate.Order, error) {
-    // 封装订单创建的复杂逻辑
-    orderID := f.idGenerator.Generate()
-    order, err := aggregate.NewOrder(orderID, userID, shippingAddress)
+) (*agg.Order, error) {
+    orderID := idGenerator.Generate()
+    order, err := agg.NewOrder(orderID, userID, shippingAddress)
     if err != nil {
         return nil, err
     }
-    
     for _, item := range productItems {
-        itemID := f.idGenerator.Generate()
+        itemID := idGenerator.Generate()
         orderItem, err := entity.NewOrderItem(itemID, item.Product, item.Quantity)
         if err != nil {
             return nil, err
@@ -588,7 +585,7 @@ func (f *OrderFactory) CreateOrder(
             return nil, err
         }
     }
-    
+    order.AddDomainEvent(event.NewOrderCreatedEvent(orderID, userID, ...))
     return order, nil
 }
 ```
@@ -651,26 +648,13 @@ func (f *OrderFactory) CreateOrder(
 ### 4.4 完整业务流程演示
 
 ```go
+// main.go：应用服务在 application/service/defaults.go 的 init 中组装，直接使用包变量
 func main() {
-    // 初始化基础设施
-    idGenerator := infrastructure.NewUUIDGenerator()
-    orderRepo := persistence.NewInMemoryOrderRepository()
-    productRepo := persistence.NewInMemoryProductRepository()
-    eventPublisher := event.NewInMemoryEventPublisher()
-    
-    // 订阅事件
-    eventPublisher.Subscribe("OrderCreated", &OrderCreatedEventHandler{})
-    eventPublisher.Subscribe("OrderPaid", &OrderPaidEventHandler{})
-    eventPublisher.Subscribe("OrderShipped", &OrderShippedEventHandler{})
-    
-    // 创建应用服务
-    orderAppService := service.NewOrderApplicationService(...)
-    
-    // 创建产品
+    orderAppService := appservice.OrderAppService  // 已由 init 注入 repo、领域服务、ID 生成器
+
     product1, _ := orderAppService.CreateProduct("iPhone 15 Pro", "最新款苹果手机", 7999.00, "CNY", 100)
     product2, _ := orderAppService.CreateProduct("MacBook Pro", "专业笔记本电脑", 14999.00, "CNY", 50)
-    
-    // 创建订单
+
     order, _ := orderAppService.CreateOrder(&dto.CreateOrderRequest{
         UserID:   "USER-001",
         Province: "广东省",
@@ -683,11 +667,8 @@ func main() {
             {ProductID: product2.ProductID, Quantity: 1},
         },
     })
-    
-    // 支付订单
+
     orderAppService.PayOrder(order.OrderID, "支付宝")
-    
-    // 发货
     orderAppService.ShipOrder(order.OrderID, "SF1234567890")
 }
 ```
@@ -701,20 +682,20 @@ func main() {
 
 **示例：**
 ```go
-// 领域层定义接口
+// 领域层定义接口（domain/factory/id_gen.go）
 type IDGenerator interface {
     Generate() string
 }
 
-// 基础设施层实现
+// 基础设施层实现（ordersys/repo/id_generator.go）
 type UUIDGenerator struct {
     counter int
 }
-
 func (g *UUIDGenerator) Generate() string {
     g.counter++
     return fmt.Sprintf("ID-%d", g.counter)
 }
+// 应用启动时注入：factory.SetIDGenerator(repo.DefaultIDGen)
 ```
 
 ### 5.2 单一职责原则 (SRP)
@@ -724,21 +705,21 @@ func (g *UUIDGenerator) Generate() string {
 
 **示例：**
 ```go
-// 订单聚合根只负责订单相关的业务逻辑
+// 订单聚合根只负责订单相关的业务逻辑（包 agg）
 type Order struct {
     id              string
     userID          string
     items           []*entity.OrderItem
-    shippingAddress *valueobject.Address
-    status          valueobject.OrderStatus
-    totalAmount     *valueobject.Money
+    shippingAddress *vo.Address
+    status          vo.OrderStatus
+    totalAmount     *vo.Money
     domainEvents    []event.DomainEvent
 }
 
-// 仓储只负责持久化
+// 仓储只负责持久化（domain/repo）
 type OrderRepository interface {
-    Save(order *aggregate.Order) error
-    FindByID(id string) (*aggregate.Order, error)
+    Save(order *agg.Order) error
+    FindByID(id string) (*agg.Order, error)
 }
 ```
 
@@ -766,12 +747,12 @@ func (h *OrderCreatedEventHandler) Handle(evt event.DomainEvent) error {
 
 **示例：**
 ```go
-// 仓储接口只包含必要的方法
+// 仓储接口只包含必要的方法（domain/repo）
 type OrderRepository interface {
-    Save(order *aggregate.Order) error
-    FindByID(id string) (*aggregate.Order, error)
-    FindByUserID(userID string) ([]*aggregate.Order, error)
-    FindAll() ([]*aggregate.Order, error)
+    Save(order *agg.Order) error
+    FindByID(id string) (*agg.Order, error)
+    FindByUserID(userID string) ([]*agg.Order, error)
+    FindAll() ([]*agg.Order, error)
     Delete(id string) error
 }
 ```
@@ -801,7 +782,7 @@ func NewMoney(amount float64, currency string) (*Money, error) {
 
 // 业务方法返回错误
 func (o *Order) Pay(paymentMethod string) error {
-    if err := o.status.CanTransitionTo(valueobject.OrderStatusPaid); err != nil {
+    if err := o.status.CanTransitionTo(vo.OrderStatusPaid); err != nil {
         return err
     }
     // ...
@@ -817,18 +798,18 @@ func (o *Order) Pay(paymentMethod string) error {
 **示例：**
 ```go
 type InMemoryOrderRepository struct {
-    orders map[string]*aggregate.Order
+    orders map[string]*agg.Order
     mu     sync.RWMutex
 }
 
-func (r *InMemoryOrderRepository) Save(order *aggregate.Order) error {
+func (r *InMemoryOrderRepository) Save(order *agg.Order) error {
     r.mu.Lock()
     defer r.mu.Unlock()
     r.orders[order.ID()] = order
     return nil
 }
 
-func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) {
+func (r *InMemoryOrderRepository) FindByID(id string) (*agg.Order, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
     order, exists := r.orders[id]
@@ -848,19 +829,17 @@ func (r *InMemoryOrderRepository) FindByID(id string) (*aggregate.Order, error) 
 ```go
 // 领域对象可独立测试
 func TestOrder_Pay(t *testing.T) {
-    address, _ := valueobject.NewAddress("广东省", "深圳市", "南山区", "科技园路100号", "518000")
-    order, _ := aggregate.NewOrder("ORDER-001", "USER-001", address)
-    
-    // 添加订单项
-    money, _ := valueobject.NewMoney(100.0, "CNY")
+    address, _ := vo.NewAddress("广东省", "深圳市", "南山区", "科技园路100号", "518000")
+    order, _ := agg.NewOrder("ORDER-001", "USER-001", address)
+
+    money, _ := vo.NewMoney(100.0, "CNY")
     product, _ := entity.NewProduct("PRODUCT-001", "测试产品", "描述", money, 10)
     orderItem, _ := entity.NewOrderItem("ITEM-001", product, 1)
     order.AddItem(orderItem)
-    
-    // 测试支付
+
     err := order.Pay("支付宝")
     assert.NoError(t, err)
-    assert.Equal(t, valueobject.OrderStatusPaid, order.Status())
+    assert.Equal(t, vo.OrderStatusPaid, order.Status())
 }
 ```
 
@@ -882,7 +861,7 @@ type MySQLOrderRepository struct {
     db *gorm.DB
 }
 
-func (r *MySQLOrderRepository) Save(order *aggregate.Order) error {
+func (r *MySQLOrderRepository) Save(order *agg.Order) error {
     return r.db.Transaction(func(tx *gorm.DB) error {
         // 保存订单
         // 保存订单项
@@ -923,33 +902,25 @@ func (p *KafkaEventPublisher) Publish(event event.DomainEvent) error {
 **示例：**
 ```go
 type OrderApplicationService struct {
-    orderRepo       repository.OrderRepository
-    transactionMgr  TransactionManager
-    logger          Logger
-    cache           Cache
+    orderRepo      repo.OrderRepository
+    transactionMgr TransactionManager
+    logger         Logger
+    cache          Cache
 }
 
 func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
-    // 记录日志
     s.logger.Info("Creating order", "userID", req.UserID)
-    
-    // 检查缓存
     if cached := s.cache.Get(req.UserID); cached != nil {
         return cached.(*dto.OrderResponse), nil
     }
-    
-    // 事务管理
     return s.transactionMgr.ExecuteInTransaction(func() (interface{}, error) {
-        // 业务逻辑
-        order, err := s.orderFactory.CreateOrder(...)
+        order, err := factory.CreateOrder(...)  // 静态工厂
         if err != nil {
             return nil, err
         }
-        
         if err := s.orderRepo.Save(order); err != nil {
             return nil, err
         }
-        
         return s.toOrderResponse(order), nil
     })
 }
@@ -984,38 +955,45 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 ```
 go_test/
-├── ordersys/                          # DDD订单系统
+├── ordersys/                          # DDD 订单系统
 │   ├── domain/                        # 领域层
 │   │   ├── model/
-│   │   │   ├── valueobject/           # 值对象
+│   │   │   ├── vo/                    # 值对象 (Value Object)
 │   │   │   │   ├── money.go           # 金额值对象
 │   │   │   │   ├── address.go         # 地址值对象
 │   │   │   │   └── order_status.go    # 订单状态值对象
 │   │   │   ├── entity/                # 实体
 │   │   │   │   ├── product.go         # 产品实体
 │   │   │   │   └── order_item.go      # 订单项实体
-│   │   │   ├── aggregate/             # 聚合根
+│   │   │   ├── agg/                   # 聚合根 (Aggregate Root)
 │   │   │   │   └── order.go           # 订单聚合根
 │   │   │   └── event/                 # 领域事件
-│   │   │       ├── domain_event.go    # 领域事件定义
-│   │   │       └── event_publisher.go # 事件发布器
+│   │   │       └── domain_event.go    # 领域事件定义与构造函数
 │   │   ├── service/                   # 领域服务
-│   │   │   └── domain_service.go      # 领域服务实现
+│   │   │   ├── order_pricing_service.go
+│   │   │   ├── product_inventory_service.go
+│   │   │   └── defaults.go            # 包级默认领域服务
 │   │   ├── factory/                   # 工厂
-│   │   │   └── order_factory.go       # 订单工厂
-│   │   └── repository/                # 仓储接口
-│   │       └── repository.go          # 仓储接口定义
+│   │   │   ├── id_gen.go              # IDGenerator 接口与 SetIDGenerator
+│   │   │   ├── order_factory.go       # CreateOrder 静态工厂
+│   │   │   └── product_factory.go     # CreateProduct 静态工厂
+│   │   └── repo/                      # 仓储接口
+│   │       └── repository.go          # OrderRepository、ProductRepository
 │   ├── application/                   # 应用层
-│   │   ├── dto/                       # 数据传输对象
-│   │   │   └── order_dto.go           # 订单DTO
-│   │   └── service/                   # 应用服务
-│   │       └── order_service.go       # 订单应用服务
-│   └── infrastructure/                # 基础设施层
-│       ├── persistence/               # 持久化实现
-│       │   └── memory_repository.go   # 内存仓储实现
-│       └── id_generator.go            # ID生成器
+│   │   ├── dto/
+│   │   │   └── order_dto.go           # 订单/产品 DTO
+│   │   └── service/
+│   │       ├── order_service.go       # 订单应用服务
+│   │       ├── event_subscriber.go   # 领域事件订阅（init 注册到 common.GlobalEvent）
+│   │       └── defaults.go            # OrderAppService 与 init 装配
+│   └── repo/                          # 基础设施层（仓储与 ID 生成器实现）
+│       ├── memory_repository.go       # 内存订单/产品仓储
+│       ├── id_generator.go            # UUIDGenerator 实现 factory.IDGenerator
+│       └── defaults.go                # DefaultIDGen、DefaultOrderRepo、DefaultProductRepo
+├── common/
+│   └── vars.go                        # GlobalEvent（EventBus）全局事件总线
 ├── main.go                            # 示例主程序
-├── go.mod                             # Go模块定义
+├── go.mod                             # Go 模块定义
 └── ARCHITECTURE.md                    # 架构设计文档
 ```
 
