@@ -41,6 +41,16 @@ func (e *OrderCreatedEvent) EventType() string {
 	return "OrderCreated"
 }
 
+// NewOrderCreatedEvent 创建订单创建事件（领域层 event 包创建，agg/factory 均可调用，无循环依赖）
+func NewOrderCreatedEvent(orderID, userID string, totalAmount float64) *OrderCreatedEvent {
+	return &OrderCreatedEvent{
+		BaseEvent:   NewBaseEvent(),
+		OrderID:     orderID,
+		UserID:      userID,
+		TotalAmount: totalAmount,
+	}
+}
+
 // OrderPaidEvent 订单支付事件
 type OrderPaidEvent struct {
 	BaseEvent
@@ -52,6 +62,15 @@ type OrderPaidEvent struct {
 // EventType 返回事件类型
 func (e *OrderPaidEvent) EventType() string {
 	return "OrderPaid"
+}
+
+func NewOrderPaidEvent(orderID string, paidAmount float64, paymentMethod string) *OrderPaidEvent {
+	return &OrderPaidEvent{
+		BaseEvent:     NewBaseEvent(),
+		OrderID:       orderID,
+		PaidAmount:    paidAmount,
+		PaymentMethod: paymentMethod,
+	}
 }
 
 // OrderShippedEvent 订单发货事件
@@ -66,6 +85,14 @@ func (e *OrderShippedEvent) EventType() string {
 	return "OrderShipped"
 }
 
+func NewOrderShippedEvent(orderID, trackingNumber string) *OrderShippedEvent {
+	return &OrderShippedEvent{
+		BaseEvent:      NewBaseEvent(),
+		OrderID:        orderID,
+		TrackingNumber: trackingNumber,
+	}
+}
+
 // OrderCancelledEvent 订单取消事件
 type OrderCancelledEvent struct {
 	BaseEvent
@@ -76,6 +103,14 @@ type OrderCancelledEvent struct {
 // EventType 返回事件类型
 func (e *OrderCancelledEvent) EventType() string {
 	return "OrderCancelled"
+}
+
+func NewOrderCancelledEvent(orderID, reason string) *OrderCancelledEvent {
+	return &OrderCancelledEvent{
+		BaseEvent: NewBaseEvent(),
+		OrderID:   orderID,
+		Reason:    reason,
+	}
 }
 
 // ProductStockChangedEvent 产品库存变更事件
@@ -90,4 +125,14 @@ type ProductStockChangedEvent struct {
 // EventType 返回事件类型
 func (e *ProductStockChangedEvent) EventType() string {
 	return "ProductStockChanged"
+}
+
+func NewProductStockChangedEvent(productID string, oldStock, newStock int, changeReason string) *ProductStockChangedEvent {
+	return &ProductStockChangedEvent{
+		BaseEvent:    NewBaseEvent(),
+		ProductID:    productID,
+		OldStock:     oldStock,
+		NewStock:     newStock,
+		ChangeReason: changeReason,
+	}
 }

@@ -47,13 +47,12 @@ func NewOrder(id, userID string, shippingAddress *valueobject2.Address) (*Order,
 		domainEvents:    make([]event.DomainEvent, 0),
 	}
 
-	order.addDomainEvent(&event.OrderCreatedEvent{
-		BaseEvent: event.NewBaseEvent(),
-		OrderID:   id,
-		UserID:    userID,
-	})
-
 	return order, nil
+}
+
+// AddDomainEvent 添加领域事件（供订单工厂在创建完成后挂 OrderCreated 等事件）
+func (o *Order) AddDomainEvent(evt event.DomainEvent) {
+	o.addDomainEvent(evt)
 }
 
 // ID 获取订单ID
@@ -150,12 +149,7 @@ func (o *Order) Pay(paymentMethod string) error {
 
 	o.status = valueobject2.OrderStatusPaid
 
-	o.addDomainEvent(&event.OrderPaidEvent{
-		BaseEvent:     event.NewBaseEvent(),
-		OrderID:       o.id,
-		PaidAmount:    o.totalAmount.Amount(),
-		PaymentMethod: paymentMethod,
-	})
+	o.addDomainEvent(event.NewOrderPaidEvent(o.id, o.totalAmount.Amount(), paymentMethod))
 
 	return nil
 }
@@ -168,11 +162,7 @@ func (o *Order) Ship(trackingNumber string) error {
 
 	o.status = valueobject2.OrderStatusShipped
 
-	o.addDomainEvent(&event.OrderShippedEvent{
-		BaseEvent:      event.NewBaseEvent(),
-		OrderID:        o.id,
-		TrackingNumber: trackingNumber,
-	})
+	o.addDomainEvent(event.NewOrderShippedEvent(o.id, trackingNumber))
 
 	return nil
 }
@@ -195,11 +185,7 @@ func (o *Order) Cancel(reason string) error {
 
 	o.status = valueobject2.OrderStatusCancelled
 
-	o.addDomainEvent(&event.OrderCancelledEvent{
-		BaseEvent: event.NewBaseEvent(),
-		OrderID:   o.id,
-		Reason:    reason,
-	})
+	o.addDomainEvent(event.NewOrderCancelledEvent(o.id, reason))
 
 	return nil
 }

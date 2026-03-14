@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"go_test/common"
 	"go_test/ordersys/application/dto"
 	"go_test/ordersys/domain/factory"
@@ -21,26 +22,20 @@ import (
 type OrderApplicationService struct {
 	orderRepo        repo.OrderRepository
 	productRepo      repo.ProductRepository
-	orderFactory     *factory.OrderFactory
-	productFactory   *factory.ProductFactory
 	pricingService   *service.OrderPricingService
 	inventoryService *service.ProductInventoryService
 }
 
-// NewOrderApplicationService 创建订单应用服务
+// NewOrderApplicationService 创建订单应用服务（订单/产品创建通过 factory 静态工厂方法）
 func NewOrderApplicationService(
 	orderRepo repo.OrderRepository,
 	productRepo repo.ProductRepository,
-	orderFactory *factory.OrderFactory,
-	productFactory *factory.ProductFactory,
 	pricingService *service.OrderPricingService,
 	inventoryService *service.ProductInventoryService,
 ) *OrderApplicationService {
 	return &OrderApplicationService{
 		orderRepo:        orderRepo,
 		productRepo:      productRepo,
-		orderFactory:     orderFactory,
-		productFactory:   productFactory,
 		pricingService:   pricingService,
 		inventoryService: inventoryService,
 	}
@@ -66,14 +61,13 @@ func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto
 		if err != nil {
 			return nil, fmt.Errorf("产品不存在: %s", item.ProductID)
 		}
-
 		productItems = append(productItems, factory.ProductItem{
 			Product:  product,
 			Quantity: item.Quantity,
 		})
 	}
 
-	order, err := s.orderFactory.CreateOrder(req.UserID, shippingAddress, productItems)
+	order, err := factory.CreateOrder(req.UserID, shippingAddress, productItems)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +175,7 @@ func (s *OrderApplicationService) CreateProduct(
 		return nil, err
 	}
 
-	product, err := s.productFactory.CreateProduct(name, description, money, stock)
+	product, err := factory.CreateProduct(name, description, money, stock)
 	if err != nil {
 		return nil, err
 	}

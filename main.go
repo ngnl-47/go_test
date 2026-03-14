@@ -2,13 +2,10 @@ package main
 
 import (
 	"fmt"
-	"go_test/ordersys/repo"
 	"log"
 
 	"go_test/ordersys/application/dto"
 	appservice "go_test/ordersys/application/service"
-	"go_test/ordersys/domain/factory"
-	domainservice "go_test/ordersys/domain/service"
 )
 
 func main() {
@@ -17,23 +14,7 @@ func main() {
 	fmt.Println("========================================")
 	fmt.Println()
 
-	idGenerator := repo.NewUUIDGenerator()
-	orderRepo := repo.NewInMemoryOrderRepository()
-	productRepo := repo.NewInMemoryProductRepository()
-
-	orderFactory := factory.NewOrderFactory(idGenerator)
-	productFactory := factory.NewProductFactory(idGenerator)
-	pricingService := domainservice.NewOrderPricingService(0.1)
-	inventoryService := domainservice.NewProductInventoryService()
-
-	orderAppService := appservice.NewOrderApplicationService(
-		orderRepo,
-		productRepo,
-		orderFactory,
-		productFactory,
-		pricingService,
-		inventoryService,
-	)
+	orderAppService := appservice.OrderAppService
 
 	fmt.Println("步骤1: 创建产品")
 	fmt.Println("----------------------------------------")
