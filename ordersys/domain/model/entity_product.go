@@ -1,9 +1,8 @@
-package entity
+package model
 
 import (
 	"errors"
 	"fmt"
-	"go_test/ordersys/domain/model/vo"
 )
 
 // Product 产品实体
@@ -12,12 +11,12 @@ type Product struct {
 	id          string
 	name        string
 	description string
-	price       *vo.Money
+	price       *Money
 	stock       int
 }
 
 // NewProduct 创建产品实体
-func NewProduct(id, name, description string, price *vo.Money, stock int) (*Product, error) {
+func NewProduct(id, name, description string, price *Money, stock int) (*Product, error) {
 	if id == "" {
 		return nil, errors.New("产品ID不能为空")
 	}
@@ -55,7 +54,7 @@ func (p *Product) Description() string {
 }
 
 // Price 获取产品价格
-func (p *Product) Price() *vo.Money {
+func (p *Product) Price() *Money {
 	return p.price
 }
 

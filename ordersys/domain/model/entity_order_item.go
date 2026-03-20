@@ -1,9 +1,6 @@
-package entity
+package model
 
-import (
-	"errors"
-	"go_test/ordersys/domain/model/vo"
-)
+import "errors"
 
 // OrderItem 订单项实体
 // 实体特性：有唯一标识（在订单范围内）、可变、包含业务逻辑
@@ -11,7 +8,7 @@ type OrderItem struct {
 	id        string
 	product   *Product
 	quantity  int
-	unitPrice *vo.Money
+	unitPrice *Money
 }
 
 // NewOrderItem 创建订单项实体
@@ -49,7 +46,7 @@ func (oi *OrderItem) Quantity() int {
 }
 
 // UnitPrice 获取单价
-func (oi *OrderItem) UnitPrice() *vo.Money {
+func (oi *OrderItem) UnitPrice() *Money {
 	return oi.unitPrice
 }
 
@@ -64,7 +61,7 @@ func (oi *OrderItem) UpdateQuantity(quantity int) error {
 
 // CalculateTotalPrice 计算订单项总价
 // 充血模型：业务逻辑在领域对象内部
-func (oi *OrderItem) CalculateTotalPrice() (*vo.Money, error) {
+func (oi *OrderItem) CalculateTotalPrice() (*Money, error) {
 	return oi.unitPrice.Multiply(float64(oi.quantity))
 }
 

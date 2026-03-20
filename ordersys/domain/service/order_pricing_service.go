@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 
-	"go_test/ordersys/domain/model/agg"
+	"go_test/ordersys/domain/model"
 )
 
 // OrderPricingService 订单定价领域服务
@@ -17,7 +17,7 @@ func NewOrderPricingService(discountRate float64) *OrderPricingService {
 }
 
 // CalculateDiscountedTotal 计算折扣后的订单总价
-func (s *OrderPricingService) CalculateDiscountedTotal(order *agg.Order) (float64, error) {
+func (s *OrderPricingService) CalculateDiscountedTotal(order *model.Order) (float64, error) {
 	if order == nil {
 		return 0, errors.New("订单不能为空")
 	}

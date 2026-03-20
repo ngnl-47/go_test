@@ -4,36 +4,30 @@ import (
 	"fmt"
 
 	"go_test/common"
-	"go_test/ordersys/application/dto"
+	"go_test/ordersys/app/dto"
+	"go_test/ordersys/domain/facade"
 	"go_test/ordersys/domain/factory"
-	"go_test/ordersys/domain/model/agg"
-	"go_test/ordersys/domain/model/entity"
-	valueobject2 "go_test/ordersys/domain/model/vo"
-	"go_test/ordersys/domain/repo"
-	"go_test/ordersys/domain/service"
+	"go_test/ordersys/domain/model"
+	domainservice "go_test/ordersys/domain/service"
 )
 
-// OrderApplicationService 订单应用服务
-// 应用服务特性：
-// 1. 协调领域对象完成业务用例
-// 2. 不包含业务逻辑，业务逻辑在领域层
-// 3. 负责事务管理和权限控制
-// 4. DTO与领域对象之间的转换
-type OrderApplicationService struct {
-	orderRepo        repo.OrderRepository
-	productRepo      repo.ProductRepository
-	pricingService   *service.OrderPricingService
-	inventoryService *service.ProductInventoryService
+// OrderAppService 订单应用服务
+// 应用服务特性：协调领域对象完成业务用例，不承担核心业务规则。
+type OrderAppService struct {
+	orderRepo        facade.OrderRepository
+	productRepo      facade.ProductRepository
+	pricingService   *domainservice.OrderPricingService
+	inventoryService *domainservice.ProductInventoryService
 }
 
-// NewOrderApplicationService 创建订单应用服务（订单/产品创建通过 factory 静态工厂方法）
-func NewOrderApplicationService(
-	orderRepo repo.OrderRepository,
-	productRepo repo.ProductRepository,
-	pricingService *service.OrderPricingService,
-	inventoryService *service.ProductInventoryService,
-) *OrderApplicationService {
-	return &OrderApplicationService{
+// NewOrderAppService 创建订单应用服务
+func NewOrderAppService(
+	orderRepo facade.OrderRepository,
+	productRepo facade.ProductRepository,
+	pricingService *domainservice.OrderPricingService,
+	inventoryService *domainservice.ProductInventoryService,
+) *OrderAppService {
+	return &OrderAppService{
 		orderRepo:        orderRepo,
 		productRepo:      productRepo,
 		pricingService:   pricingService,
@@ -42,9 +36,8 @@ func NewOrderApplicationService(
 }
 
 // CreateOrder 创建订单
-// 应用服务方法：协调领域对象完成业务用例
-func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
-	shippingAddress, err := valueobject2.NewAddress(
+func (s *OrderAppService) CreateOrder(req *dto.CreateOrderRequest) (*dto.OrderResponse, error) {
+	shippingAddress, err := model.NewAddress(
 		req.Province,
 		req.City,
 		req.District,
@@ -84,7 +77,7 @@ func (s *OrderApplicationService) CreateOrder(req *dto.CreateOrderRequest) (*dto
 }
 
 // PayOrder 支付订单
-func (s *OrderApplicationService) PayOrder(orderID, paymentMethod string) error {
+func (s *OrderAppService) PayOrder(orderID, paymentMethod string) error {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
 		return err
@@ -102,7 +95,7 @@ func (s *OrderApplicationService) PayOrder(orderID, paymentMethod string) error 
 }
 
 // ShipOrder 发货
-func (s *OrderApplicationService) ShipOrder(orderID, trackingNumber string) error {
+func (s *OrderAppService) ShipOrder(orderID, trackingNumber string) error {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
 		return err
@@ -120,7 +113,7 @@ func (s *OrderApplicationService) ShipOrder(orderID, trackingNumber string) erro
 }
 
 // CancelOrder 取消订单
-func (s *OrderApplicationService) CancelOrder(orderID, reason string) error {
+func (s *OrderAppService) CancelOrder(orderID, reason string) error {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
 		return err
@@ -138,7 +131,7 @@ func (s *OrderApplicationService) CancelOrder(orderID, reason string) error {
 }
 
 // GetOrder 查询订单
-func (s *OrderApplicationService) GetOrder(orderID string) (*dto.OrderResponse, error) {
+func (s *OrderAppService) GetOrder(orderID string) (*dto.OrderResponse, error) {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
 		return nil, err
@@ -148,7 +141,7 @@ func (s *OrderApplicationService) GetOrder(orderID string) (*dto.OrderResponse, 
 }
 
 // GetUserOrders 查询用户订单列表
-func (s *OrderApplicationService) GetUserOrders(userID string) ([]*dto.OrderResponse, error) {
+func (s *OrderAppService) GetUserOrders(userID string) ([]*dto.OrderResponse, error) {
 	orders, err := s.orderRepo.FindByUserID(userID)
 	if err != nil {
 		return nil, err
@@ -163,14 +156,14 @@ func (s *OrderApplicationService) GetUserOrders(userID string) ([]*dto.OrderResp
 }
 
 // CreateProduct 创建产品
-func (s *OrderApplicationService) CreateProduct(
+func (s *OrderAppService) CreateProduct(
 	name string,
 	description string,
 	price float64,
 	currency string,
 	stock int,
 ) (*dto.ProductResponse, error) {
-	money, err := valueobject2.NewMoney(price, currency)
+	money, err := model.NewMoney(price, currency)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +181,7 @@ func (s *OrderApplicationService) CreateProduct(
 }
 
 // publishDomainEvents 发布领域事件到全局总线 common.GlobalEvent
-func (s *OrderApplicationService) publishDomainEvents(order *agg.Order) error {
+func (s *OrderAppService) publishDomainEvents(order *model.Order) error {
 	for _, evt := range order.DomainEvents() {
 		common.GlobalEvent.Publish(evt.EventType(), evt)
 	}
@@ -197,7 +190,7 @@ func (s *OrderApplicationService) publishDomainEvents(order *agg.Order) error {
 }
 
 // toOrderResponse 将订单聚合根转换为DTO
-func (s *OrderApplicationService) toOrderResponse(order *agg.Order) *dto.OrderResponse {
+func (s *OrderAppService) toOrderResponse(order *model.Order) *dto.OrderResponse {
 	items := make([]dto.OrderItemResponse, 0, len(order.Items()))
 	for _, item := range order.Items() {
 		itemTotal, _ := item.CalculateTotalPrice()
@@ -230,7 +223,7 @@ func (s *OrderApplicationService) toOrderResponse(order *agg.Order) *dto.OrderRe
 }
 
 // toProductResponse 将产品实体转换为DTO
-func (s *OrderApplicationService) toProductResponse(product *entity.Product) *dto.ProductResponse {
+func (s *OrderAppService) toProductResponse(product *model.Product) *dto.ProductResponse {
 	return &dto.ProductResponse{
 		ProductID:   product.ID(),
 		Name:        product.Name(),

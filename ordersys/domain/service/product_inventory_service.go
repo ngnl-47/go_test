@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 
-	"go_test/ordersys/domain/model/entity"
+	"go_test/ordersys/domain/model"
 )
 
 // ProductInventoryService 产品库存领域服务
@@ -15,7 +15,7 @@ func NewProductInventoryService() *ProductInventoryService {
 }
 
 // CheckInventory 检查库存是否充足
-func (s *ProductInventoryService) CheckInventory(products []*entity.Product, quantities map[string]int) error {
+func (s *ProductInventoryService) CheckInventory(products []*model.Product, quantities map[string]int) error {
 	for _, product := range products {
 		requiredQty, exists := quantities[product.ID()]
 		if !exists {
@@ -29,7 +29,7 @@ func (s *ProductInventoryService) CheckInventory(products []*entity.Product, qua
 }
 
 // ReserveInventory 预留库存
-func (s *ProductInventoryService) ReserveInventory(products []*entity.Product, quantities map[string]int) error {
+func (s *ProductInventoryService) ReserveInventory(products []*model.Product, quantities map[string]int) error {
 	for _, product := range products {
 		requiredQty, exists := quantities[product.ID()]
 		if !exists {
@@ -43,7 +43,7 @@ func (s *ProductInventoryService) ReserveInventory(products []*entity.Product, q
 }
 
 // ReleaseInventory 释放库存（如订单取消时）
-func (s *ProductInventoryService) ReleaseInventory(products []*entity.Product, quantities map[string]int) error {
+func (s *ProductInventoryService) ReleaseInventory(products []*model.Product, quantities map[string]int) error {
 	for _, product := range products {
 		releaseQty, exists := quantities[product.ID()]
 		if !exists {

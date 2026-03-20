@@ -1,4 +1,4 @@
-package event
+package model
 
 import "time"
 
@@ -41,7 +41,7 @@ func (e *OrderCreatedEvent) EventType() string {
 	return "OrderCreated"
 }
 
-// NewOrderCreatedEvent 创建订单创建事件（领域层 event 包创建，agg/factory 均可调用，无循环依赖）
+// NewOrderCreatedEvent 创建订单创建事件
 func NewOrderCreatedEvent(orderID, userID string, totalAmount float64) *OrderCreatedEvent {
 	return &OrderCreatedEvent{
 		BaseEvent:   NewBaseEvent(),

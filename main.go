@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"go_test/ordersys/application/dto"
-	appservice "go_test/ordersys/application/service"
+	"go_test/ordersys/app/dto"
+	appservice "go_test/ordersys/app/service"
 )
 
 func main() {
@@ -14,18 +14,18 @@ func main() {
 	fmt.Println("========================================")
 	fmt.Println()
 
-	orderAppService := appservice.OrderAppService
+	orderAppSvc := appservice.OrderAppSvc
 
 	fmt.Println("步骤1: 创建产品")
 	fmt.Println("----------------------------------------")
-	product1, err := orderAppService.CreateProduct("iPhone 15 Pro", "最新款苹果手机", 7999.00, "CNY", 100)
+	product1, err := orderAppSvc.CreateProduct("iPhone 15 Pro", "最新款苹果手机", 7999.00, "CNY", 100)
 	if err != nil {
 		log.Fatalf("创建产品失败: %v", err)
 	}
 	fmt.Printf("✓ 产品创建成功: %s (ID: %s, 价格: %.2f %s, 库存: %d)\n",
 		product1.Name, product1.ProductID, product1.Price, product1.Currency, product1.Stock)
 
-	product2, err := orderAppService.CreateProduct("MacBook Pro", "专业笔记本电脑", 14999.00, "CNY", 50)
+	product2, err := orderAppSvc.CreateProduct("MacBook Pro", "专业笔记本电脑", 14999.00, "CNY", 50)
 	if err != nil {
 		log.Fatalf("创建产品失败: %v", err)
 	}
@@ -48,7 +48,7 @@ func main() {
 		},
 	}
 
-	order, err := orderAppService.CreateOrder(createOrderReq)
+	order, err := orderAppSvc.CreateOrder(createOrderReq)
 	if err != nil {
 		log.Fatalf("创建订单失败: %v", err)
 	}
@@ -67,13 +67,13 @@ func main() {
 
 	fmt.Println("步骤3: 支付订单")
 	fmt.Println("----------------------------------------")
-	err = orderAppService.PayOrder(order.OrderID, "支付宝")
+	err = orderAppSvc.PayOrder(order.OrderID, "支付宝")
 	if err != nil {
 		log.Fatalf("支付订单失败: %v", err)
 	}
 	fmt.Printf("✓ 订单支付成功\n")
 
-	paidOrder, err := orderAppService.GetOrder(order.OrderID)
+	paidOrder, err := orderAppSvc.GetOrder(order.OrderID)
 	if err != nil {
 		log.Fatalf("查询订单失败: %v", err)
 	}
@@ -82,13 +82,13 @@ func main() {
 
 	fmt.Println("步骤4: 发货")
 	fmt.Println("----------------------------------------")
-	err = orderAppService.ShipOrder(order.OrderID, "SF1234567890")
+	err = orderAppSvc.ShipOrder(order.OrderID, "SF1234567890")
 	if err != nil {
 		log.Fatalf("发货失败: %v", err)
 	}
 	fmt.Printf("✓ 订单发货成功\n")
 
-	shippedOrder, err := orderAppService.GetOrder(order.OrderID)
+	shippedOrder, err := orderAppSvc.GetOrder(order.OrderID)
 	if err != nil {
 		log.Fatalf("查询订单失败: %v", err)
 	}
@@ -97,7 +97,7 @@ func main() {
 
 	fmt.Println("步骤5: 查询用户订单列表")
 	fmt.Println("----------------------------------------")
-	userOrders, err := orderAppService.GetUserOrders("USER-001")
+	userOrders, err := orderAppSvc.GetUserOrders("USER-001")
 	if err != nil {
 		log.Fatalf("查询用户订单失败: %v", err)
 	}
@@ -121,19 +121,19 @@ func main() {
 		},
 	}
 
-	cancelOrder, err := orderAppService.CreateOrder(cancelOrderReq)
+	cancelOrder, err := orderAppSvc.CreateOrder(cancelOrderReq)
 	if err != nil {
 		log.Fatalf("创建订单失败: %v", err)
 	}
 	fmt.Printf("✓ 订单创建成功: %s\n", cancelOrder.OrderID)
 
-	err = orderAppService.CancelOrder(cancelOrder.OrderID, "用户主动取消")
+	err = orderAppSvc.CancelOrder(cancelOrder.OrderID, "用户主动取消")
 	if err != nil {
 		log.Fatalf("取消订单失败: %v", err)
 	}
 	fmt.Printf("✓ 订单取消成功\n")
 
-	cancelledOrder, err := orderAppService.GetOrder(cancelOrder.OrderID)
+	cancelledOrder, err := orderAppSvc.GetOrder(cancelOrder.OrderID)
 	if err != nil {
 		log.Fatalf("查询订单失败: %v", err)
 	}
