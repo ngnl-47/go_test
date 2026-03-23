@@ -1,13 +1,14 @@
-package service
+package domain
 
 import (
+	"go_test/ranksys/domain/service"
 	"testing"
 
 	"go_test/ranksys/domain/model"
 )
 
 func TestRankStorageKeyBuilder_Build_ClusterTagShared(t *testing.T) {
-	b := MustNewRankStorageKeyBuilder("xyjh")
+	b := service.MustNewRankStorageKeyBuilder("xyjh")
 	name, _ := model.ParseBoardName("rank:server:level:{1}")
 	k := b.Build(name)
 
