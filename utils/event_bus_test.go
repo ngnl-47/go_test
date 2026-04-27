@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -187,4 +189,37 @@ func TestSubscribeAsync(t *testing.T) {
 	//if numResults != 2 {
 	//	t.Fail()
 	//}
+}
+
+func TestConcurrentPublishDifferentTopics(t *testing.T) {
+	bus := New()
+	const goroutines = 32
+	const publishesPerTopic = 50
+
+	var total int64
+	for ch := byte('a'); ch <= byte('z'); ch++ {
+		topic := string(ch)
+		bus.Subscribe(topic, func(p *int64) {
+			atomic.AddInt64(p, 1)
+		})
+	}
+
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		topic := string(rune('a' + (g % 26)))
+		wg.Add(1)
+		go func(topic string) {
+			defer wg.Done()
+			for i := 0; i < publishesPerTopic; i++ {
+				bus.Publish(topic, &total)
+			}
+		}(topic)
+	}
+
+	wg.Wait()
+
+	want := int64(goroutines * publishesPerTopic)
+	if atomic.LoadInt64(&total) != want {
+		t.Fatalf("got total %d, want %d", atomic.LoadInt64(&total), want)
+	}
 }
