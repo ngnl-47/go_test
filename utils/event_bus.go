@@ -46,11 +46,11 @@ type eventHandler struct {
 	async         bool
 	transactional bool
 	once          sync.Once // SubscribeOnce(Async): user callback runs at most once
-	sync.Mutex    // transactional async: serialize callbacks for this subscription
+	sync.Mutex              // transactional async: serialize callbacks for this subscription
 }
 
-// New returns new EventBus with empty handlers.
-func New() Bus {
+// NewEventBus returns new EventBus with empty handlers.
+func NewEventBus() Bus {
 	b := &EventBus{
 		handlers: make(map[string][]*eventHandler),
 	}
