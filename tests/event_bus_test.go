@@ -1,6 +1,7 @@
-package utils
+package tests
 
 import (
+	"go_test/utils"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	if bus == nil {
 		t.Log("NewEventBus EventBus not created!")
 		t.Fail()
@@ -16,7 +17,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestHasCallback(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	bus.Subscribe("topic", func() {})
 	if bus.HasCallback("topic_topic") {
 		t.Fail()
@@ -27,7 +28,7 @@ func TestHasCallback(t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	if bus.Subscribe("topic", func() {}) != nil {
 		t.Fail()
 	}
@@ -37,7 +38,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestSubscribeOnce(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	if bus.SubscribeOnce("topic", func() {}) != nil {
 		t.Fail()
 	}
@@ -47,7 +48,7 @@ func TestSubscribeOnce(t *testing.T) {
 }
 
 func TestSubscribeOnceAndManySubscribe(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	event := "topic"
 	flag := 0
 	fn := func() { flag += 1 }
@@ -62,7 +63,7 @@ func TestSubscribeOnceAndManySubscribe(t *testing.T) {
 }
 
 func TestUnsubscribe(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	handler := func() {}
 	bus.Subscribe("topic", handler)
 	if bus.Unsubscribe("topic", handler) != nil {
@@ -82,7 +83,7 @@ func (h *handler) Handle() {
 }
 
 func TestUnsubscribeMethod(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	h := &handler{val: 0}
 
 	bus.Subscribe("topic", h.Handle)
@@ -102,7 +103,7 @@ func TestUnsubscribeMethod(t *testing.T) {
 }
 
 func TestPublish(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	bus.Subscribe("topic", func(a int, err error) {
 		if a != 10 {
 			t.Fail()
@@ -118,7 +119,7 @@ func TestPublish(t *testing.T) {
 func TestSubcribeOnceAsync(t *testing.T) {
 	results := make([]int, 0)
 
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	bus.SubscribeOnceAsync("topic", func(a int, out *[]int) {
 		*out = append(*out, a)
 	})
@@ -140,7 +141,7 @@ func TestSubcribeOnceAsync(t *testing.T) {
 func TestSubscribeAsyncTransactional(t *testing.T) {
 	results := make([]int, 0)
 
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	bus.SubscribeAsync("topic", func(a int, out *[]int, dur string) {
 		sleep, _ := time.ParseDuration(dur)
 		time.Sleep(sleep)
@@ -164,7 +165,7 @@ func TestSubscribeAsyncTransactional(t *testing.T) {
 func TestSubscribeAsync(t *testing.T) {
 	results := make(chan int)
 
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	bus.SubscribeAsync("topic", func(a int, out chan<- int) {
 		out <- a
 	}, false)
@@ -192,7 +193,7 @@ func TestSubscribeAsync(t *testing.T) {
 }
 
 func TestConcurrentPublishDifferentTopics(t *testing.T) {
-	bus := NewEventBus()
+	bus := utils.NewEventBus()
 	const goroutines = 32
 	const publishesPerTopic = 50
 
